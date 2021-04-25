@@ -31,7 +31,8 @@ defmodule ElixirLS.LanguageServer.Server do
     OnTypeFormatting,
     CodeLens,
     ExecuteCommand,
-    FoldingRange
+    FoldingRange,
+    SelectionRange
   }
 
   alias ElixirLS.Utils.Launch
@@ -741,6 +742,17 @@ defmodule ElixirLS.LanguageServer.Server do
     end
   end
 
+  defp handle_request(selection_range_req(_id, uri, positions), state) do
+    case get_source_file(state, uri) do
+      nil ->
+        {:error, :server_error, "Missing source file", state}
+
+      source_file ->
+        fun = fn -> SelectionRange.provide(source_file, positions) end
+        {:async, fun, state}
+    end
+  end
+
   # TODO remove in ElixirLS 0.8
   defp handle_request(macro_expansion(_id, whole_buffer, selected_macro, macro_line), state) do
     IO.warn(
@@ -783,7 +795,8 @@ defmodule ElixirLS.LanguageServer.Server do
       "textDocumentSync" => %{
         "change" => 2,
         "openClose" => true,
-        "save" => %{"includeText" => true}
+        "save" => %{"includeText" => true},
+        "selectionRange" => true
       },
       "hoverProvider" => true,
       "completionProvider" => %{"triggerCharacters" => Completion.trigger_characters()},
@@ -805,7 +818,8 @@ defmodule ElixirLS.LanguageServer.Server do
       "workspace" => %{
         "workspaceFolders" => %{"supported" => false, "changeNotifications" => false}
       },
-      "foldingRangeProvider" => true
+      "foldingRangeProvider" => true,
+      "selectionRangeProvider" => true
     }
   end
 
